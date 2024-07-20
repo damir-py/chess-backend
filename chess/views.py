@@ -1,31 +1,33 @@
+from django.contrib.auth.hashers import check_password
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.hashers import check_password
 
 from .models import User, OTP
 from .serializers import UserSerializer
 from .utils import check_otp, send_otp, check_otp_expired, check_user
 
 
+# Register starts from there
 class AuthenticationAPIView(ViewSet):
     def register(self, request):
         data = request.data
-        user = User.objects.filter(username=data.get['username']).first()
-        if user.is_verified:
+        user = User.objects.filter(username=data.get('username')).first()
+
+        if user and user.is_verified:
             return Response(
                 data={'message': 'User already exists.', 'ok': False},
                 status=status.HTTP_400_BAD_REQUEST
             )
         serializer = UserSerializer(user, data=data, partial=True) if user else UserSerializer(data=data)
-
         if not serializer.is_valid():
             return Response(
                 data={'message': serializer.errors, 'ok': False},
                 status=status.HTTP_400_BAD_REQUEST
             )
         validated_data = serializer.save()
+        print(validated_data.password)
         obj_create = OTP.objects.create(user_id=validated_data.id)
         obj_all = OTP.objects.filter(user_id=validated_data.id)
 
@@ -53,7 +55,7 @@ class AuthenticationAPIView(ViewSet):
             )
         check_otp_expired(obj_otp)
 
-        if obj_otp.attempts >= 1:
+        if obj_otp.attempts >= 2:
             return Response(
                 data={'message': 'Please get new otp code and key!', 'ok': False},
                 status=status.HTTP_400_BAD_REQUEST
@@ -91,13 +93,15 @@ class AuthenticationAPIView(ViewSet):
         check_user(obj_user)
 
         if check_password(password, obj_user.password):
-            refresh_token = str(RefreshToken.for_user(obj_user))
-            access_token = str(refresh_token.access_token)
+            refresh_token = RefreshToken.for_user(obj_user)
+            access_token = refresh_token.access_token
             return Response(
-                data={'message': {'access_token': access_token, 'refresh_token': refresh_token}, 'ok': False},
+                data={'message': {'access_token': str(access_token), 'refresh_token': str(refresh_token)}, 'ok': True},
                 status=status.HTTP_200_OK
             )
         return Response(
             data={'message': 'Password is incorrect!', 'ok': False},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
