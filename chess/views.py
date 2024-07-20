@@ -1,10 +1,12 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.hashers import check_password
 
 from .models import User, OTP
 from .serializers import UserSerializer
-from .utils import check_otp, send_otp, check_otp_expired
+from .utils import check_otp, send_otp, check_otp_expired, check_user
 
 
 class AuthenticationAPIView(ViewSet):
@@ -72,4 +74,30 @@ class AuthenticationAPIView(ViewSet):
         return Response(
             data={'message': 'User successfully verified!', 'ok': True},
             status=status.HTTP_200_OK
+        )
+
+    def login(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        if username is None or password is None:
+            return Response(
+                data={'message': 'Please fill all the blanks!', 'ok': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        obj_user = User.objects.filter(username=username).first()
+
+        check_user(obj_user)
+
+        if check_password(password, obj_user.password):
+            refresh_token = str(RefreshToken.for_user(obj_user))
+            access_token = str(refresh_token.access_token)
+            return Response(
+                data={'message': {'access_token': access_token, 'refresh_token': refresh_token}, 'ok': False},
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            data={'message': 'Password is incorrect!', 'ok': False},
+            status=status.HTTP_400_BAD_REQUEST
         )
