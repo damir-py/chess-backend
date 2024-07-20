@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # local-apps
     'chess',
+    'authentication',
 
 ]
 
@@ -124,7 +125,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'chess.User'
+AUTH_USER_MODEL = 'authentication.User'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),

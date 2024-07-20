@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import requests
 from django.conf import settings
 
-from .exceptions import BadRequestException
+from authentication.exceptions import BadRequestException
 
 
 def send_otp(otp):
