@@ -4,7 +4,7 @@ from rest_framework.viewsets import ViewSet
 
 from .models import User, OTP
 from .serializers import UserSerializer
-from .utils import check_otp, send_otp
+from .utils import check_otp, send_otp, check_otp_expired
 
 
 class AuthenticationAPIView(ViewSet):
@@ -31,3 +31,45 @@ class AuthenticationAPIView(ViewSet):
 
         obj_create.save()
         send_otp(obj_create)
+        return Response(data={'message': {obj_create.otp_key}, 'ok': True}, status=status.HTTP_201_CREATED)
+
+    def verify(self, request):
+        otp_code = request.data.get('otp_code')
+        otp_key = request.data.get('otp_key')
+
+        if not otp_code or not otp_key:
+            return Response(
+                data={'message': 'otp code ot kay not found!', 'ok': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        obj_otp = OTP.objects.filter(otp_key=otp_key).first()
+        if not obj_otp:
+            return Response(
+                data={'message': 'otp not found!', 'ok': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        check_otp_expired(obj_otp)
+
+        if obj_otp.attempts >= 1:
+            return Response(
+                data={'message': 'Please get new otp code and key!', 'ok': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if obj_otp.otp_code != otp_code:
+            obj_otp.attempts += 1
+            obj_otp.save(update_fields=['attempts'])
+            return Response(
+                data={'message': 'OTP code verification failed!', 'ok': False},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = obj_otp.user
+        user.is_verified = True
+        user.save(update_fields=['is_verified'])
+        OTP.objects.filter(user_id=user.id).delete()
+        return Response(
+            data={'message': 'User successfully verified!', 'ok': True},
+            status=status.HTTP_200_OK
+        )

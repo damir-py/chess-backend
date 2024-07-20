@@ -39,3 +39,8 @@ def check_user(user):
 
     if not user.is_verified:
         raise BadRequestException('User is not verified!')
+
+
+def check_otp_expired(otp):
+    if datetime.now() - otp.created_at > timedelta(minutes=3):
+        raise BadRequestException('OTP expired!')
